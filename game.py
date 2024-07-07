@@ -4,13 +4,14 @@ from storySegment import StorySegment
 class Game:
 	def __init__(self):
 		self.state = {
-			"path_blocked": False,
+			'worked': False,
 			"lost_items": False,
 			"injured": False,
-			"entered_at_night": False,
 			"help_failure": False,
 			"escape_failure": False,
 		}
+
+		self.inventory = []
 
 		self.story_segments = {
 			"start": StorySegment(
@@ -31,7 +32,7 @@ class Game:
 				"Du gehst tiefer in den Wald hinein. Plötzlich hörst du ein seltsames Geräusch. Was tust du?",
 				[
 					{"text": "Das Geräusch untersuchen", "next": "strange_noise"},
-					{"text": "Weglaufen", "next": "running_away"},
+					{"text": "In eine andere Richtung gehen", "next": "lost_forest"},
 				]
 			),
 			"crowd": StorySegment(
@@ -57,10 +58,10 @@ class Game:
 				]
 			),
 			"running_away": StorySegment(
-				"Du versuchst wegzulaufen, aber der Weg ist blockiert. Du musst dich entscheiden, wohin du gehst.",
+				"Du rennst so schnell du kannst, aber die Banditen sind schneller. Sie fangen dich und bringen dich zu ihrem Lager.",
 				[
-					{"text": "Zurück zum Startpunkt", "next": "start"},
-					{"text": "In eine andere Richtung rennen", "next": "lost_forest"},
+					{"text": "Einen Fluchtplan schmieden", "next": "escape_attempt"},
+					{"text": "Auf Hilfe warten", "next": "rescue_attempt"},
 				]
 			),
 			"help_injured": StorySegment(
@@ -73,6 +74,22 @@ class Game:
 			"shop": StorySegment(
 				"Im Laden findest du nützliche Gegenstände. Da du kein Geld hast kannst du nichts kaufen.",
 				[
+					{"text": "Mit dem Ladenbesitzer reden", "next": "shop_owner"},
+					{"text": "Den Laden verlassen", "next": "village_center"},
+				]
+			),
+			"shop_owner": StorySegment(
+				"Der Ladenbesitzer bietet dir einen job an, um Geld zu verdienen. Was tust du?",
+				[
+					{"text": "Den Job annehmen", "action": self.accept_job},
+					{"text": "Den Job ablehnen", "next": "village_center"},
+				]
+			),
+			"job_acceptance": StorySegment(
+				"Du arbeitest im Laden und verdienst Geld für nützliche Gegenstände. Was kaufst du?",
+				[
+					{"text": "Heiltrank", "action": self.buy_healing_potion},
+					{"text": "Karte des Waldes", "action": self.buy_map},
 					{"text": "Den Laden verlassen", "next": "village_center"},
 				]
 			),
@@ -90,10 +107,41 @@ class Game:
 					{"text": "Den Turm ignorieren", "next": "wander_forest"},
 				]
 			),
+			"enter_tower": StorySegment(
+				"Du betrittst den Turm und ein mysteriöser Wächter erscheint. Er stellt dir drei Rätsel. Beantworte sie richtig, um weiterzukommen. Eine falsche Antwort führt zu einem Kampf.",
+				[
+					{"text": "Rätsel 1 beantworten", "next": "riddle_1"},
+				]
+			),
+			"riddle_1": StorySegment(
+				"Rätsel 1: Ich spreche ohne Mund und höre ohne Ohren. Ich habe keinen Körper, aber ich werde durch den Wind lebendig. Was bin ich?",
+				[
+					{"text": "", "action": self.riddle1},
+				]
+			),
+			"riddle_2": StorySegment(
+				"Rätsel 2: Ich werde immer größer, je mehr du wegnimmst. Was bin ich?",
+				[
+					{"text": "", "action": self.riddle2},
+				]
+			),
+			"riddle_3": StorySegment(
+				"Rätsel 3: Je mehr du nimmst, desto mehr lässt du zurück. Was bin ich?",
+				[
+					{"text": "", "action": self.riddle3},
+				]
+			),
+			# not back to town
+			"treasure_room": StorySegment(
+				"Du hast alle Rätsel richtig beantwortet! Der Wächter verschwindet und ein Schatz öffnet sich vor dir.",
+				[
+					{"text": "Schatz nehmen", "next": "back_to_town"},
+				]
+			),
 			"treasure_hunt": StorySegment(
 				"Du folgst den Hinweisen und entdeckst einen verborgenen Schatz. Plötzlich hörst du ein Knurren hinter dir.",
 				[
-					{"text": "Umdrehen und kämpfen", "next": "treasure_guardian"},
+					{"text": "Umdrehen und kämpfen", "next": "wolf_fight"},
 					{"text": "Mit dem Schatz weglaufen", "next": "escape_treasure"},
 				]
 			),
@@ -102,19 +150,6 @@ class Game:
 				[
 					{"text": "Dem Fremden glauben und in den Wald gehen", "next": "treasure_hunt"},
 					{"text": "Den Fremden ignorieren", "next": "village_center"},
-				]
-			),
-			"enter_tower": StorySegment(
-				"Im Turm findest du alte Schriftrollen und magische Artefakte. Plötzlich beginnt der Turm zu zittern.",
-				[
-					{"text": "Die Artefakte untersuchen", "next": "artifact_inspection"},
-					{"text": "Den Turm verlassen", "next": "wander_forest"},
-				]
-			),
-			"wander_forest": StorySegment(
-				"Du wanderst weiter durch den Wald und findest schließlich den Weg zurück zum Startpunkt.",
-				[
-					{"text": "Zurück zum Startpunkt", "next": "start"},
 				]
 			),
 			"treasure_guardian": StorySegment(
@@ -136,11 +171,12 @@ class Game:
 					{"text": "Würfeln", "action": self.fight_wolf},
 				]
 			),
-			"artifact_inspection": StorySegment(
-				"Die verborgene Macht in den Artefakten gibt dir unglaubliche Fähigkeiten. Was tust du?",
+			"back_to_town": StorySegment(
+				"Du kehrst zurück ins Dorf und befindet dich wieder am Anfang deiner Reise.",
 				[
-					{"text": "Die Macht nutzen", "next": "forest_mastery"},
-					{"text": "Die Macht zurücklassen", "next": "wander_forest"},
+					{"text": "Zum Laden gehen", "next": "shop"},
+					{"text": "Zum Gasthaus gehen", "next": "inn"},
+					{"text": "Das Dorf verlassen", "next": "deep_forest"},
 				]
 			),
 			"escape_plan": StorySegment(
@@ -153,24 +189,6 @@ class Game:
 				"Je nach deinem Würfelergebnis wirst du entweder gerettet oder musst weiter auf Hilfe warten.",
 				[
 					{"text": "Würfeln", "action": self.wait_help},
-				]
-			),
-			"use_power": StorySegment(
-				"Die verborgene Macht in den Artefakten gibt dir unglaubliche Fähigkeiten. Was tust du?",
-				[
-					{"text": "Die Macht nutzen", "next": "forest_mastery"},
-					{"text": "Die Macht zurücklassen", "next": "wander_forest"},
-				]
-			),
-			"back_to_town": StorySegment(
-				"Du kehrst zurück ins Dorf und wirst von den Dorfbewohnern versorgt. Deine Reise endet hier.",
-				[]
-			),
-			"speak_spirits": StorySegment(
-				"Die Geister des Waldes offenbaren dir geheime Pfade und versteckte Schätze. Was tust du?",
-				[
-					{"text": "Den Pfaden folgen", "next": "secret_paths"},
-					{"text": "Im Dorf bleiben", "next": "village_center"},
 				]
 			),
 			"bandit_camp": StorySegment(
@@ -199,10 +217,10 @@ class Game:
 					{"text": "Die Geheimnisse enthüllen", "next": "ancient_secrets"},
 				]
 			),
-			"ancient_secrets": StorySegment(
-				"Du enthüllst die uralten Geheimnisse des Waldes und erhältst Wissen und Macht, die dir auf deiner Reise helfen werden.",
+			"boss_fight": StorySegment(
+				"Du hast eine falsche Antwort gegeben und der Wächter greift dich an! Du musst strategisch kämpfen, um zu überleben.",
 				[
-					{"text": "Spiel beenden", "next": "end"},
+					{"text": "Kampf beginnen", "action": self.fight_boss},
 				]
 			),
 			"end": StorySegment(
@@ -211,36 +229,69 @@ class Game:
 			),
 		}
 	
-
-	def enter_at_night(self):
-		self.state["entered_at_night"] = True
+	def fight_boss(self):
+		boss_defeated = False
+		while boss_defeated == False:
+			#interesting boss fight
+			boss_hp = 100
+			player_hp = 100
+			while boss_hp > 0 and player_hp > 0:
+				player_damage = random.randint(1, 25)
+				boss_damage = random.randint(1, 15)
+				boss_hp -= player_damage
+				player_hp -= boss_damage
+				print(f"Du greifst den Wächter an und verursachst {player_damage} Schaden. Der Wächter hat noch {boss_hp} HP.")
+				print(f"Der Wächter greift dich an und verursacht {boss_damage} Schaden. Du hast noch {player_hp} HP.")
+			if boss_hp <= 0:
+				boss_defeated = True
+				print("Du hast den Wächter besiegt und kannst deine Reise fortsetzen.")
+				return "treasure_room"
+			else:
+				print("Du wurdest vom Wächter besiegt. Deine Reise endet hier.")
+				return "end"
 
 	def fight_bandits(self):
 		roll = random.randint(1, 20)
 		if roll <= 10:
 			self.state["lost_items"] = True
-			print (self.state["lost_items"])
 			print(f"Du hast eine {roll} gewürfelt. Du wurdest von den Banditen besiegt und hast einige Gegenstände verloren.")
+			self.lose_items()
 			return "bandit_camp"
 		else:
 			print(f"Du hast eine {roll} gewürfelt. Nach einem schweren Kampf besiegst du die Banditen und setzt deine Reise fort.")
 			return "lost_forest"
 		
 	def fight_wolf(self):
+		if self.state["injured"] == True:
+			if self.check_inventory("Heiltrank") == True:
+				self.remove_from_inventory("Heiltrank")
+				self.state["injured"] = False
+				print ("Du hast einen Heiltrank benutzt, der deine Verletzungen geheilt hat.")
+			else:
+				print ("Du bist verletzt und kannst nicht kämpfen.")
+				return "lost_forest"
 		roll = random.randint(1, 20)
 		if roll <= 10:
 			self.state["injured"] = True
-			print(f"Du hast eine {roll} gewürfelt. Du wurdest vom Wolf verletzt und fliehst.")
-			return "wolf_fight_outcome"
+			print(f"Du hast eine {roll} gewürfelt. Du wurdest vom Wolf verletzt und fliehst zurück ins dorf.")
+			return "back_to_town"
 		elif roll <= 20:
 			print(f"Du hast eine {roll} gewürfelt. Nach einem schweren Kampf besiegst du den Wolf und setzt deine Reise fort.")
 			return "lost_forest"
 		
+	def buy_healing_potion(self):
+		self.add_to_inventory("Heiltrank")
+		return "village_center"
+	
+	def buy_map(self):
+		self.add_to_inventory("Karte des Waldes")
+		return "village_center"
+	
 	def wait_help(self):
 		roll = random.randint(1, 20)
 		if roll <= 5:
 			self.state["help_failure"] = True
-			print(f"Du hast eine {roll} gewürfelt. Du wurdest nicht gerettet und hast einige Gegenstände verloren.")
+			print(f"Du hast eine {roll} gewürfelt. Du wurdest nicht gerettet.")
 			return "bandit_camp"
 		else:
 			print(f"Du hast eine {roll} gewürfelt. Du wurdest gerettet und kannst deine Reise fortsetzen.")
@@ -250,12 +301,72 @@ class Game:
 		roll = random.randint(1, 20)
 		if roll <= 5:
 			self.state["escape_failure"] = True
-			print(f"Du hast eine {roll} gewürfelt. Du wurdest wieder eingefangen und hast einige Gegenstände verloren.")
+			print(f"Du hast eine {roll} gewürfelt. Du wurdest wieder eingefangen.")
 			return "bandit_camp"
 		else:
 			print(f"Du hast eine {roll} gewürfelt. Du bist erfolgreich entkommen und kannst deine Reise fortsetzen.")
 			return "lost_forest"
+	
+	def accept_job(self):
+		if self.state["worked"] == False:
+			self.state["worked"] = True
+			return "job_acceptance"
+		else:
+			print ("Du hast bereits im Laden gearbeitet, tu etwas anderes!.")
+			return "shop"
+
+	def riddle1(self):
+		answer = input("Antwort: ")
+		if answer.lower() == "echo" or answer.lower() == "hall":
+			print("Richtig! Hier ist das nächste Rätsel.")
+			return "riddle_2"
+		else:
+			print("Falsch! Du musst kämpfen.")
+			return "boss_fight"
 		
+	def riddle2(self):
+		answer = input("Antwort: ")
+		if answer.lower() == "loch":
+			print("Richtig! Hier ist das letzte Rätsel.")
+			return "riddle_3"
+		else:
+			print("Falsch! Du musst kämpfen.")
+			return "boss_fight"
+	
+	def riddle3(self):
+		answer = input("Antwort: ")
+		if answer.lower() == "fußspuren" or answer.lower() == "fußabdrücke":
+			print("Richtig! Du hast alle Rätsel gelöst.")
+			return "treasure_room"
+		else:
+			print("Falsch! Du musst kämpfen.")
+			return "boss_fight"
+
+	def check_inventory(self, item_str):
+		if item_str in self.inventory:
+			return True
+		else:
+			return False
+		
+	def add_to_inventory (self, item):
+		self.inventory.append(item)
+		print(f"Du hast {item} gefunden und deinem Inventar hinzugefügt.")
+		print (f"Inventar: {self.inventory}")
+
+	def remove_from_inventory (self, item):
+		self.inventory.remove(item)
+		print(f"Du hast {item} verloren.")
+	
+	def lose_items(self):
+		if self.state["lost_items"] == True:
+			if len(self.inventory) > 0:
+				for i in range(2):
+					random_item = random.choice(self.inventory)
+					self.remove_from_inventory(random_item)
+			else:
+				print ("Du hast keine Gegenstände zu verlieren.")
+		print (f"Inventar: {self.inventory}")
+
 	def play(self):
 		current_segment = self.story_segments["start"]
 		while True:
@@ -263,10 +374,11 @@ class Game:
 			if not current_segment.choices:
 				break
 			choice = current_segment.get_choice()
-			if "action" in choice:
-				next_segment_key = choice["action"]()
-			else:
+			if "next" in choice:
 				next_segment_key = choice["next"]
+			elif "action" in choice:
+				next_segment_key = choice["action"]()
+
 			current_segment = self.story_segments[next_segment_key]
 
 if __name__ == "__main__":	
