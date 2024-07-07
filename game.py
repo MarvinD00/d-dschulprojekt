@@ -3,6 +3,7 @@ from storySegment import StorySegment
 
 class Game:
 	def __init__(self):
+		# Add the state and inventory attributes here
 		self.state = {
 			'worked': False,
 			"lost_items": False,
@@ -13,10 +14,16 @@ class Game:
 
 		self.inventory = []
 
+		# Add the story_segments (see storySegment.py)
 		self.story_segments = {
 			"start": StorySegment(
+				# Add the description for the segment
 				"Du wachst in einem unbekannten Wald auf. Du hast keine Erinnerung daran, wie du hierher gekommen bist. Vor dir sind zwei Wege: einer führt zu einem Dorf, der andere in die Tiefen des Waldes.",
 				[
+					# Add the choices for the segment
+					# text = displayed text for each choice
+					# next = key for the next segment
+					# action = function to call for the choice
 					{"text": "Zum Dorf gehen", "next": "village_entrance"},
 					{"text": "In den Wald gehen", "next": "deep_forest"},
 				]
@@ -131,11 +138,10 @@ class Game:
 					{"text": "", "action": self.riddle3},
 				]
 			),
-			# not back to town
 			"treasure_room": StorySegment(
 				"Du hast alle Rätsel richtig beantwortet! Der Wächter verschwindet und ein Schatz öffnet sich vor dir.",
 				[
-					{"text": "Schatz nehmen", "next": "back_to_town"},
+					{"text": "Schatz nehmen", "next": "end"},
 				]
 			),
 			"treasure_hunt": StorySegment(
@@ -224,15 +230,20 @@ class Game:
 				]
 			),
 			"end": StorySegment(
-				"Deine Reise endet hier. Vielen Dank fürs Spielen!",
-				[]
+				"Du hast das Spiel beendet. Du kehrst mit dem Schatz ins Dorf zurück und wirst als Held gefeiert.",
+				[
+					{"text": "Spiel beenden", "action" : self.end_game},
+				]
 			),
 		}
 	
+	# Add the game functions here
+	# each of these returns a key for the next segment, depending on outcome / choice / previous actions
+
+	# fight functions
 	def fight_boss(self):
 		boss_defeated = False
 		while boss_defeated == False:
-			#interesting boss fight
 			boss_hp = 100
 			player_hp = 100
 			while boss_hp > 0 and player_hp > 0:
@@ -279,6 +290,8 @@ class Game:
 			print(f"Du hast eine {roll} gewürfelt. Nach einem schweren Kampf besiegst du den Wolf und setzt deine Reise fort.")
 			return "lost_forest"
 		
+	# other functions
+
 	def buy_healing_potion(self):
 		self.add_to_inventory("Heiltrank")
 		return "village_center"
@@ -342,6 +355,8 @@ class Game:
 			print("Falsch! Du musst kämpfen.")
 			return "boss_fight"
 
+	# helper functions for the inventory
+
 	def check_inventory(self, item_str):
 		if item_str in self.inventory:
 			return True
@@ -367,6 +382,14 @@ class Game:
 				print ("Du hast keine Gegenstände zu verlieren.")
 		print (f"Inventar: {self.inventory}")
 
+	# end game function to not get error in while loop of play function
+
+	def end_game(self):
+		exit()
+
+	# main play function / game loop
+	# this is where the game starts and the player progresses through the story segments
+
 	def play(self):
 		current_segment = self.story_segments["start"]
 		while True:
@@ -381,6 +404,7 @@ class Game:
 
 			current_segment = self.story_segments[next_segment_key]
 
-if __name__ == "__main__":	
+if __name__ == "__main__":
+	# Create an instance of the Game class and start the game
 	game = Game()
 	game.play()
